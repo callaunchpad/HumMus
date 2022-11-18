@@ -7,7 +7,7 @@ data:
     max_bars:         16                 
     enc_seqlen:       128
     dec_seqlen:       1280               
-    batch_size:       4
+    batch_size:       3
 
 model:
     enc_n_layer:      12
@@ -22,6 +22,7 @@ model:
     d_latent:         128
     d_polyph_emb:     64
     d_rfreq_emb:      64
+    d_velocity_emb:   64
     cond_mode:        in-attn
     pretrained_params_path:      null
     pretrained_optim_path:       null
@@ -30,7 +31,7 @@ training:
     device:           cuda:0
     ckpt_dir:         ./ckpt/enc_dec_12L-16_bars-seqlen_1280
     trained_steps:    0
-    max_epochs:       1000
+    max_epochs:       75
     max_lr:           1.0e-4
     min_lr:           5.0e-6
     lr_warmup_steps:  200

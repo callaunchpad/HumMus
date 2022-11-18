@@ -82,13 +82,14 @@ def train_model(epoch, model, dloader, dloader_val, optim, sched):
     batch_padding_mask = batch_samples['enc_padding_mask'].to(device)
     batch_rfreq_cls = batch_samples['rhymfreq_cls'].permute(1, 0).to(device)
     batch_polyph_cls = batch_samples['polyph_cls'].permute(1, 0).to(device)
+    batch_velocity_cls = batch_samples['velocity_cls'].permute(1, 0).to(device)
 
     global trained_steps
     trained_steps += 1
 
     mu, logvar, dec_logits = model(
       batch_enc_inp, batch_dec_inp, 
-      batch_inp_bar_pos, batch_rfreq_cls, batch_polyph_cls,
+      batch_inp_bar_pos, batch_rfreq_cls, batch_polyph_cls, batch_velocity_cls,
       padding_mask=batch_padding_mask
     )
 
@@ -196,13 +197,15 @@ def validate(model, dloader, n_rounds=8, use_attr_cls=True):
         if use_attr_cls:
           batch_rfreq_cls = batch_samples['rhymfreq_cls'].permute(1, 0).to(device)
           batch_polyph_cls = batch_samples['polyph_cls'].permute(1, 0).to(device)
+          batch_velocity_cls = batch_samples['velocity_cls'].permute(1, 0).to(device)
         else:
           batch_rfreq_cls = None
           batch_polyph_cls = None
+          batch_velocity_cls = None
 
         mu, logvar, dec_logits = model(
           batch_enc_inp, batch_dec_inp, 
-          batch_inp_bar_pos, batch_rfreq_cls, batch_polyph_cls,
+          batch_inp_bar_pos, batch_rfreq_cls, batch_polyph_cls, batch_velocity_cls,
           padding_mask=batch_padding_mask
         )
 
@@ -244,7 +247,7 @@ if __name__ == "__main__":
     mconf['enc_n_layer'], mconf['enc_n_head'], mconf['enc_d_model'], mconf['enc_d_ff'],
     mconf['dec_n_layer'], mconf['dec_n_head'], mconf['dec_d_model'], mconf['dec_d_ff'],
     mconf['d_latent'], mconf['d_embed'], dset.vocab_size,
-    d_polyph_emb=mconf['d_polyph_emb'], d_rfreq_emb=mconf['d_rfreq_emb'],
+    d_polyph_emb=mconf['d_polyph_emb'], d_rfreq_emb=mconf['d_rfreq_emb'], d_velocity_emb=mconf['d_velocity_emb'],
     cond_mode=mconf['cond_mode']
   ).to(device)
   if pretrained_params_path:

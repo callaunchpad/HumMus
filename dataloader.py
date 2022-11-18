@@ -193,14 +193,17 @@ class REMIFullSongTransformerDataset(Dataset):
   def get_attr_classes(self, piece, st_bar):
     polyph_cls = pickle_load(os.path.join(self.data_dir, 'attr_cls/polyph', piece))[st_bar : st_bar + self.model_max_bars]
     rfreq_cls = pickle_load(os.path.join(self.data_dir, 'attr_cls/rhythm', piece))[st_bar : st_bar + self.model_max_bars]
+    velocity_cls = pickle_load(os.path.join(self.data_dir, 'attr_cls/velocity', piece))[st_bar : st_bar + self.model_max_bars]
 
     polyph_cls.extend([0 for _ in range(self.model_max_bars - len(polyph_cls))])
     rfreq_cls.extend([0 for _ in range(self.model_max_bars - len(rfreq_cls))])
+    velocity_cls.extend([0 for _ in range(self.model_max_bars - len(velocity_cls))])
 
     assert len(polyph_cls) == self.model_max_bars
     assert len(rfreq_cls) == self.model_max_bars
+    assert len(velocity_cls) == self.model_max_bars
 
-    return polyph_cls, rfreq_cls
+    return polyph_cls, rfreq_cls, velocity_cls
 
   def get_encoder_input_data(self, bar_positions, bar_events):
     assert len(bar_positions) == self.model_max_bars + 1
@@ -231,15 +234,17 @@ class REMIFullSongTransformerDataset(Dataset):
       bar_events = self.pitch_augment(bar_events)
 
     if self.use_attr_cls:
-      polyph_cls, rfreq_cls = self.get_attr_classes(os.path.basename(self.pieces[idx]), st_bar)
+      polyph_cls, rfreq_cls, velocity_cls = self.get_attr_classes(os.path.basename(self.pieces[idx]), st_bar)
       polyph_cls_expanded = np.zeros((self.model_dec_seqlen,), dtype=int)
       rfreq_cls_expanded = np.zeros((self.model_dec_seqlen,), dtype=int)
+      velocity_cls_expanded = np.zeros((self.model_dec_seqlen,), dtype=int)
       for i, (b_st, b_ed) in enumerate(zip(bar_pos[:-1], bar_pos[1:])):
         polyph_cls_expanded[b_st:b_ed] = polyph_cls[i]
         rfreq_cls_expanded[b_st:b_ed] = rfreq_cls[i]
+        velocity_cls_expanded[b_st:b_ed] = velocity_cls[i]
     else:
-      polyph_cls, rfreq_cls = [0], [0]
-      polyph_cls_expanded, rfreq_cls_expanded = [0], [0]
+      polyph_cls, rfreq_cls, velocity_cls = [0], [0], [0]
+      polyph_cls_expanded, rfreq_cls_expanded, velocity_cls_expanded = [0], [0], [0]
 
     bar_tokens = convert_event(bar_events, self.event2idx, to_ndarr=False)
     bar_pos = bar_pos.tolist() + [len(bar_tokens)]
@@ -265,8 +270,10 @@ class REMIFullSongTransformerDataset(Dataset):
       'dec_target': target[:self.model_dec_seqlen],
       'polyph_cls': polyph_cls_expanded,
       'rhymfreq_cls': rfreq_cls_expanded,
+      'velocity_cls': velocity_cls_expanded,
       'polyph_cls_bar': np.array(polyph_cls),
       'rhymfreq_cls_bar': np.array(rfreq_cls),
+      'velocity_cls_bar': np.array(velocity_cls),
       'length': min(length, self.model_dec_seqlen),
       'enc_padding_mask': enc_padding_mask,
       'enc_length': enc_lens,
