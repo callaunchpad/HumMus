@@ -31,7 +31,7 @@ training:
     device:           cuda:0
     ckpt_dir:         ./ckpt/enc_dec_12L-16_bars-seqlen_1280
     trained_steps:    0
-    max_epochs:       75
+    max_epochs:       1
     max_lr:           1.0e-4
     min_lr:           5.0e-6
     lr_warmup_steps:  200

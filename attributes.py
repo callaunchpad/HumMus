@@ -77,6 +77,43 @@ def get_onsets_timing(events, n_bars):
 
   return onset_record
 
+# poly, rhyth, velocity
+def get_bins(file_name):
+    # file = opened(file_name)
+
+    bar_pos, events = pickle_load(os.path.join(data_dir, file_name))
+    events = events[ :bar_pos[-1] ]
+
+    polyph_raw = np.reshape(
+      compute_polyphonicity(events, n_bars=len(bar_pos)), (-1, 16)
+    )
+    rhythm_raw = np.reshape(
+      get_onsets_timing(events, n_bars=len(bar_pos)), (-1, 16)
+    )
+    velocity_raw = compute_velocity_variance(events, n_bars=len(bar_pos))
+
+    polyph_cls = np.searchsorted(polyphonicity_bounds, np.mean(polyph_raw, axis=-1)).tolist()
+    rfreq_cls = np.searchsorted(rhym_intensity_bounds, np.mean(rhythm_raw, axis=-1)).tolist()
+    velocity_cls = np.searchsorted(velocity_bounds, velocity_raw).tolist()
+
+    polyph_bin = avg_bin(polyph_cls)
+    rfreq_bin = avg_bin(rfreq_cls)
+    velocity_bin = avg_bin(velocity_cls)
+
+    return polyph_bin, rfreq_bin, velocity_bin
+
+# bins are zero-indexed
+def avg_bin(cl):
+    # [7, 9, 3]
+    # sum -> half -> count
+    all_cls = sum(cl)
+    curr = all_cls // 2
+    bin_num = -1
+    while curr > 0:
+        curr -= cl[bin_num]
+        bin_num += 1
+    return bin_num
+
 if __name__ == "__main__":
   pieces = [p for p in sorted(os.listdir(data_dir)) if '.pkl' in p]
   all_r_cls = []

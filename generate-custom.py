@@ -13,10 +13,6 @@ import yaml
 import numpy as np
 from scipy.stats import entropy
 
-rhym_intensity_bounds = [0.2, 0.25, 0.32, 0.38, 0.44, 0.5, 0.63]
-polyphonicity_bounds = [2.63, 3.06, 3.50, 4.00, 4.63, 5.44, 6.44]
-velocity_bounds = [3.16, 4.26, 5.033, 5.67, 6.27, 6.94, 7.84]
-
 config_path = sys.argv[1]
 config = yaml.load(open(config_path, 'r'), Loader=yaml.FullLoader)
 
@@ -193,102 +189,12 @@ def generate_on_latent_ctrl_vanilla_truncate(
   print ('-- time elapsed: {:.2f} secs'.format(time.time() - time_st))
   return generated_final[:-1], time.time() - time_st, np.array(entropies)
 
-def getCurrBin(file_name):
-  bar_pos, events = pickle_load(os.path.join(data_dir, file_name))
-  events = events[ :bar_pos[-1] ]
-
-  polyph_raw = np.reshape(
-    compute_polyphonicity(events, n_bars=len(bar_pos)), (-1, 16)
-  )
-  rhythm_raw = np.reshape(
-    get_onsets_timing(events, n_bars=len(bar_pos)), (-1, 16)
-  )
-  velocity_raw = compute_velocity_variance(events, n_bars=len(bar_pos))
-
-  polyph_cls = np.searchsorted(polyphonicity_bounds, np.mean(polyph_raw, axis=-1)).tolist()
-  rfreq_cls = np.searchsorted(rhym_intensity_bounds, np.mean(rhythm_raw, axis=-1)).tolist()
-  velocity_cls = np.searchsorted(velocity_bounds, velocity_raw).tolist()
-
-  return polyph_cls, rfreq_cls, velocity_cls
-  
-def getOutput(file_name, polyphBin, rhythmBin , velBin):
-  '''
-  creates output from saved midi file based on input bins
-  '''
-
-  # get file
-  bar_pos, events = pickle_load(os.path.join(data_dir, file_name))
-  events = events[ :bar_pos[-1] ]
-
-  # do some preprocessing
-
-  # iterate through indices of samples
-
-
-  p_cls_diff = get_shifted_num(get_bin(), polyphBin, "polyph")
-  r_cls_diff = get_shifted_num(get_bin(), rhythmBin, "rhythmic")
-  v_cls_diff = get_shifted_num(get_bin(), velBin, "velocity")
-
-  piece_entropies = []
-  for samp in range(n_samples_per_piece):
-    p_polyph_cls = (p_data['polyph_cls_bar'] + p_cls_diff[samp]).clamp(0, 7).long()
-    p_rfreq_cls = (p_data['rhymfreq_cls_bar'] + r_cls_diff[samp]).clamp(0, 7).long()
-    p_velocity_cls = (p_data['velocity_cls_bar'] + v_cls_diff[samp]).clamp(0, 7).long()
-
-    print ('[info] piece: {}, bar: {}'.format(p_id, p_bar_id))
-    out_file = os.path.join(out_dir, 'id{}_bar{}_sample{:02d}_poly{}_rhym{}_velo{}'.format(
-      p, p_bar_id, samp + 1,
-      '+{}'.format(p_cls_diff[samp]) if p_cls_diff[samp] >= 0 else p_cls_diff[samp], 
-      '+{}'.format(r_cls_diff[samp]) if r_cls_diff[samp] >= 0 else r_cls_diff[samp],
-      '+{}'.format(v_cls_diff[samp]) if v_cls_diff[samp] >= 0 else v_cls_diff[samp]
-    ))      
-    print ('[info] writing to ...', out_file)
-    if os.path.exists(out_file + '.txt'):
-      print ('[info] file exists, skipping ...')
-      continue
-
-  song, t_sec, entropies = generate_on_latent_ctrl_vanilla_truncate(
-    model, p_latents, p_rfreq_cls, p_polyph_cls, p_velocity_cls, dset.event2idx, dset.idx2event,
-    max_input_len=config['generate']['max_input_dec_seqlen'], 
-    truncate_len=min(512, config['generate']['max_input_dec_seqlen'] - 32), 
-    nucleus_p=config['generate']['nucleus_p'], 
-    temperature=config['generate']['temperature'],         
-                                )
-                                
-  song = word2event(song, dset.idx2event)
-  print (*song, sep='\n', file=open(out_file + '.txt', 'a'))
-  remi2midi(song, out_file + '.mid', enforce_tempo=True, enforce_tempo_val=orig_tempo)
-
-  
-  return 
 
 ########################################
 # change attribute classes
 ########################################
 def random_shift_attr_cls(n_samples, upper=4, lower=-3):
-  return np.random.randint(upper, lower, (n_samples,))
-
-def get_shifted_num(curr_bin, shift, attr):
-  new_bin = max(min(curr_bin + shift, 7), 0)
-  if attr == "velocity":
-    bounds = velocity_bounds
-    max_bound = 9
-  elif attr == "polyph":
-    bounds = polyphonicity_bounds
-    max_bound = 8
-  elif attr == "rhythmic":
-    bounds = rhym_intensity_bounds
-    max_bound = 1
-  if new_bin == 0:
-    upper = bounds[new_bin]
-    lower = 0
-  elif new_bin == 7:
-    upper = max_bound
-    lower = bounds[new_bin-1]
-  else:
-    upper = bounds[new_bin]
-    lower = bounds[new_bin-1]
-  return np.random.uniform(lower, upper)
+  return np.random.randint(3, 4, (n_samples,))
 
 
 if __name__ == "__main__":
@@ -358,8 +264,6 @@ if __name__ == "__main__":
                   use_sampling=config['generate']['use_latent_sampling'],
                   sampling_var=config['generate']['latent_sampling_var']
                 )
-
- 
     p_cls_diff = random_shift_attr_cls(n_samples_per_piece)
     r_cls_diff = random_shift_attr_cls(n_samples_per_piece)
     v_cls_diff = random_shift_attr_cls(n_samples_per_piece)
